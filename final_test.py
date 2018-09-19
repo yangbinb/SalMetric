@@ -17,6 +17,19 @@ gt_lst = [data_root+x.strip() for x in test_lst]
 mask_lst = [result_root+x.strip() for x in test_lst]
 data_size = len(gt_lst)
 
+gts = []
+masks = []
+for idx in range(0, data_size):
+    gt = cv2.imread(gt_lst[idx], 0)
+    mask = cv2.imread(mask_lst[idx], 0)
+    gt = np.array(gt)
+    mask = np.array(mask)
+    gts.append(gt)
+    masks.append(mask)
+
+gts = np.array(gts)
+masks = np.array(masks)
+
 def eval_mae(pred, gt):
     return np.abs(pred - gt).mean()
 
@@ -28,23 +41,21 @@ def eval_one_threshold(pred, gt, threshold):
     # F_beta = (1 + beta ** 2) * prec * recall / (beta ** 2 * prec + recall)
     return prec, recall
 
+def eval_mean_threshold(pred, gt):
+    threshold = pred.mean()
+    if threshold > 255:
+        threshold = 255
+    mask = (pred > threshold)
+    gt = np.array((gt == 255), dtype=np.float)
+    tp = (mask * gt).sum() + 1e-5
+    prec, recall = tp / (mask.sum() + 1e-5), tp / gt.sum()
+    F_beta = (1 + beta ** 2) * prec * recall / (beta ** 2 * prec + recall)
+    return F_beta
+
 def compute_max_F_measure():
     prec_list = []
     recall_list = []
     F_beta_list = []
-    gts = []
-    masks = []
-    for idx in range(0, data_size):
-        gt = cv2.imread(gt_lst[idx], 0)
-        mask = cv2.imread(mask_lst[idx], 0)
-        gt = np.array(gt)
-        mask = np.array(mask)
-        gts.append(gt)
-        masks.append(mask)
-
-    gts = np.array(gts)
-    masks = np.array(masks)
-
 
     # compute mae
     avg_mae = 0.0
@@ -90,4 +101,15 @@ def compute_max_F_measure():
     writefile.write('%f %f %f %f\n' % (F_beta_list[index], prec_list[index], recall_list[index], avg_mae))
     writefile.close()
 
+def compute_mean_F_measure():
+    F_beta_measure = 0.0
+    for idx in range(0, data_size):
+        gt = gts[idx]
+        mask = masks[idx]
+        F_measure = eval_mean_threshold(mask, gt)
+        F_beta_measure += F_measure
+    F_beta_measure /= data_size
+    print('Mean F-measure: %f' % F_beta_measure)
+
 compute_max_F_measure()
+compute_mean_F_measure()
