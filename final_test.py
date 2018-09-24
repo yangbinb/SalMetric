@@ -42,7 +42,7 @@ def eval_one_threshold(pred, gt, threshold):
     return prec, recall
 
 def eval_mean_threshold(pred, gt):
-    threshold = pred.mean()
+    threshold = 2 * pred.mean()
     if threshold > 255:
         threshold = 255
     mask = (pred > threshold)
