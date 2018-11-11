@@ -18,73 +18,48 @@ class PAGRN(nn.Module):
 
         self.block1 = nn.Sequential(
             nn.Conv2d(3, 64, kernel_size=3, padding=1),
-            nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
             nn.Conv2d(64, 64, kernel_size=3, padding=1),
-            nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2)
         )
 
         self.block2 = nn.Sequential(
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            nn.BatchNorm2d(128),
             nn.ReLU(inplace=True),
             nn.Conv2d(128, 128, kernel_size=3, padding=1),
-            nn.BatchNorm2d(128),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2)
         )
 
         self.block3 = nn.Sequential(
             nn.Conv2d(128, 256, kernel_size=3, padding=1),
-            nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
             nn.Conv2d(256, 256, kernel_size=3, padding=1),
-            nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
             nn.Conv2d(256, 256, kernel_size=3, padding=1),
-            nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
             nn.Conv2d(256, 256, kernel_size=3, padding=1),
-            # nn.BatchNorm2d(256),
-            # nn.ReLU(inplace=True),
-            # nn.MaxPool2d(kernel_size=2, stride=2)
         )
 
         self.block4 = nn.Sequential(
             nn.Conv2d(256, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512),
             nn.ReLU(inplace=True),
             nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512),
             nn.ReLU(inplace=True),
             nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512),
             nn.ReLU(inplace=True),
             nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            # nn.BatchNorm2d(512),
-            # nn.ReLU(inplace=True),
-            # nn.MaxPool2d(kernel_size=2, stride=2)
         )
 
         self.block5 = nn.Sequential(
             nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512),
             nn.ReLU(inplace=True),
             nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512),
             nn.ReLU(inplace=True),
             nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512),
             nn.ReLU(inplace=True),
             nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512),
             nn.ReLU(inplace=True),
             nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            # nn.BatchNorm2d(512),
-            # nn.ReLU(inplace=True),
-            # nn.MaxPool2d(kernel_size=2, stride=2)
         )
 
         self.attention_5_1 = nn.Conv2d(512, 512, kernel_size=1)
@@ -101,20 +76,22 @@ class PAGRN(nn.Module):
 
         self.saliency_map = nn.Conv2d(256, 1, kernel_size=1)
 
-        self.recurrent_5 = nn.Conv2d(512, 512, kernel_size=1)
         self.recurrent_4 = nn.Conv2d(512, 512, kernel_size=1)
         self.recurrent_3 = nn.Conv2d(512, 256, kernel_size=1)
+        self.recurrent_2 = nn.Conv2d(512, 128, kernel_size=1)
 
+        self.batch_normal_pooling_2 = Batch_ReLU_Pooling(128)
+        self.batch_normal_2 = nn.BatchNorm2d(128)
         self.batch_normal_pooling_3 = Batch_ReLU_Pooling(256)
         self.batch_normal_3 = nn.BatchNorm2d(256)
         self.batch_normal_pooling_4 = Batch_ReLU_Pooling(512)
         self.batch_normal_4 = nn.BatchNorm2d(512)
-        self.batch_normal_5_1 = nn.BatchNorm2d(512)
-        self.batch_normal_5_2 = nn.BatchNorm2d(512)
 
     def forward(self, x, H):
         x = self.block1(x)
-        x = self.block2(x)
+        conv2_2 = self.block2(x)
+        x = self.batch_normal_pooling_2(conv2_2)
+        x += self.batch_normal_2(self.recurrent_2(F.upsample(H, scale_factor=4, mode='bilinear', align_corners=True)))
         conv3_4 = self.block3(x)
         x = self.batch_normal_pooling_3(conv3_4)
         x += self.batch_normal_3(self.recurrent_3(F.upsample(H, scale_factor=2, mode='bilinear', align_corners=True)))
@@ -123,8 +100,7 @@ class PAGRN(nn.Module):
         x += self.batch_normal_4(self.recurrent_4(H))
         conv5_5 = self.block5(x)
         new_H = conv5_5
-        conv5_5 = self.batch_normal_5_1(conv5_5)
-        conv5_5 += self.batch_normal_5_2(self.recurrent_5(H))
+
 
         gap_5 = F.adaptive_avg_pool2d(conv5_5, (1,1))
         coeff = self.attention_5_1(gap_5)
@@ -152,4 +128,3 @@ class PAGRN(nn.Module):
         salient_map = F.upsample(salient_map, scale_factor=4, mode='bilinear', align_corners=True)
 
         return salient_map, new_H
-        # the size of H is 1/16 of size of salient map
