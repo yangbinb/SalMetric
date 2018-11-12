@@ -131,7 +131,7 @@ class PAGRN(nn.Module):
         salient_map_1 = F.upsample(salient_map, scale_factor=4, mode='bilinear', align_corners=True)
 
 
-        # split for two recurrent procedure
+        # # split for two recurrent procedure
 
         x = self.block1(input_img)
         conv2_2 = self.block2(x)
